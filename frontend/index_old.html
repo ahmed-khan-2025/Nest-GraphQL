@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Books & Movies</title>
+  <!-- <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 2rem auto; }
+    input { margin: 0.2rem 0; padding: 0.4rem; width: 50%; }
+    button { padding: 0.5rem 1rem; margin-top: 0.5rem; }
+    h2, h3 { margin-top: 2rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+    th { background-color: #f2f2f2; }
+    .section { border-bottom: 1px solid #ccc; padding-bottom: 2rem; }
+    .actions button { margin-right: 0.3rem; }
+  </style> -->
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <h1>Books & Movies</h1>
+  <input type="hidden" id="book-id" />
+  <input type="hidden" id="movie-id" />
+  <div class="section" id="books-section">
+    <h3>Add Book</h3>
+    <input id="book-title" placeholder="Title" />
+    <input id="book-author" placeholder="Author" />
+    <button class="add-btn" onclick="addBook()">Add Book</button>
+    <h2>Books</h2>
+    <table id="books-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Author</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="section" id="movies-section">
+    <h3>Add Movie</h3>
+    <input id="movie-title" placeholder="Title" />
+    <input id="movie-director" placeholder="Director" />
+    <input id="movie-year" placeholder="Year" type="number" />
+    <button class="add-btn" onclick="addMovie()">Add Movie</button>
+    <h2>Movies</h2>
+    <table id="movies-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Director</th>
+          <th>Year</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+<script>
+  const GRAPHQL_ENDPOINT = 'http://localhost:3000/graphql';
+
+  async function graphqlRequest(query, variables = {}) {
+    const response = await fetch(GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, variables }),
+    });
+    const json = await response.json();
+    if (json.errors) {
+      alert('Error: ' + json.errors.map(e => e.message).join(', '));
+      throw new Error(json.errors.map(e => e.message).join(', '));
+    }
+    return json.data;
+  }
+
+  async function fetchBooks() {
+    const query = `
+      query {
+        getBooks {
+          id
+          title
+          author
+        }
+      }
+    `;
+    const data = await graphqlRequest(query);
+    const tbody = document.querySelector('#books-table tbody');
+    tbody.innerHTML = '';
+    data.getBooks?.forEach(book => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${book.title}</td>
+        <td>${book.author}</td>
+        <td class="actions">
+          <button class='edit-btn'   onclick="editBook('${book.id}', '${book.title}', '${book.author}')">✏️</button>
+          <button class='delete-btn' onclick="deleteBook('${book.id}')">🗑️</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function addBook() {
+    const title = document.getElementById('book-title').value.trim();
+    const author = document.getElementById('book-author').value.trim();
+    const id = document.getElementById('book-id').value;
+
+    if (!title || !author) {
+      alert('Please fill both title and author');
+      return;
+    }
+
+    if (id) {
+      const mutation = `
+        mutation UpdateBook($id: ID!, $input: UpdateBookInput!) {
+          updateBook(id: $id, input: $input) {
+            id
+          }
+        }
+      `;
+      await graphqlRequest(mutation, { id, input: { title, author } });
+    } else {
+      const mutation = `
+        mutation CreateBook($input: CreateBookInput!) {
+          createBook(input: $input) {
+            id
+            title
+            author
+          }
+        }
+      `;
+      await graphqlRequest(mutation, { input: { title, author } });
+    }
+
+    document.getElementById('book-id').value = '';
+    document.getElementById('book-title').value = '';
+    document.getElementById('book-author').value = '';
+    fetchBooks();
+  }
+
+  function editBook(id, title, author) {
+    document.getElementById('book-id').value = id;
+    document.getElementById('book-title').value = title;
+    document.getElementById('book-author').value = author;
+  }
+
+  async function deleteBook(id) {
+    const mutation = `
+      mutation RemoveBook($id: Int!) {
+        removeBook(id: $id)
+      }
+    `;
+    await graphqlRequest(mutation, { id: parseInt(id, 10) });
+    fetchBooks();
+  }
+
+  async function fetchMovies() {
+    const query = `
+      query {
+        movies {
+          id
+          title
+          director
+          year
+        }
+      }
+    `;
+    const data = await graphqlRequest(query);
+    const tbody = document.querySelector('#movies-table tbody');
+    tbody.innerHTML = '';
+    data.movies.forEach(movie => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${movie.title}</td>
+        <td>${movie.director}</td>
+        <td>${movie.year}</td>
+        <td class="actions">
+          <button class='edit-btn'   onclick="editMovie('${movie.id}', '${movie.title}', '${movie.director}', ${movie.year})">✏️</button>
+          <button class='delete-btn' onclick="deleteMovie('${movie.id}')">🗑️</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function addMovie() {
+    const id = document.getElementById('movie-id').value;
+    const title = document.getElementById('movie-title').value.trim();
+    const director = document.getElementById('movie-director').value.trim();
+    const year = parseInt(document.getElementById('movie-year').value.trim(), 10);
+
+    if (!title || !director || !year) {
+      alert('Please fill title, director and year');
+      return;
+    }
+
+    if (id) {
+      const mutation = `
+        mutation UpdateMovie($input: UpdateMovieInput!) {
+          updateMovie(input: $input) {
+            id
+          }
+        }
+      `;
+      await graphqlRequest(mutation, { input: { id, title, director, year } });
+    } else {
+      const mutation = `
+        mutation CreateMovie($input: CreateMovieInput!) {
+          createMovie(input: $input) {
+            id
+          }
+        }
+      `;
+      await graphqlRequest(mutation, { input: { title, director, year } });
+    }
+
+    document.getElementById('movie-id').value = '';
+    document.getElementById('movie-title').value = '';
+    document.getElementById('movie-director').value = '';
+    document.getElementById('movie-year').value = '';
+    fetchMovies();
+  }
+
+  function editMovie(id, title, director, year) {
+    document.getElementById('movie-id').value = id;
+    document.getElementById('movie-title').value = title;
+    document.getElementById('movie-director').value = director;
+    document.getElementById('movie-year').value = year;
+  }
+
+  async function deleteMovie(id) {
+    const mutation = `
+      mutation RemoveMovie($id: String!) {
+        removeMovie(id: $id) {
+          id
+          title
+        }
+      }
+    `;
+    await graphqlRequest(mutation, { id: id.toString() });
+    fetchMovies();
+  }
+
+  fetchBooks();
+  fetchMovies();
+</script>
+</body>
+</html>

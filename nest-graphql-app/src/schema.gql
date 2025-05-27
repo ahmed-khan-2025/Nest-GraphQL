@@ -1,0 +1,56 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type Book {
+  id: ID!
+  title: String!
+  author: String!
+}
+
+type Movie {
+  id: ID!
+  title: String!
+  director: String!
+  year: Int!
+}
+
+type Query {
+  getBooks: [Book!]!
+  book(id: Int!): Book
+  movies: [Movie!]!
+  movie(id: String!): Movie!
+}
+
+type Mutation {
+  createBook(input: CreateBookInput!): Book!
+  updateBook(input: UpdateBookInput!): Book!
+  removeBook(id: Int!): Boolean!
+  createMovie(input: CreateMovieInput!): Movie!
+  updateMovie(input: UpdateMovieInput!): Movie!
+  removeMovie(id: String!): Movie!
+}
+
+input CreateBookInput {
+  title: String!
+  author: String!
+}
+
+input UpdateBookInput {
+  title: String
+  author: String
+  id: ID!
+}
+
+input CreateMovieInput {
+  title: String!
+  director: String!
+  year: Int!
+}
+
+input UpdateMovieInput {
+  title: String
+  director: String
+  year: Int
+  id: String!
+}
